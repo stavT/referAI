@@ -1,0 +1,2 @@
+# Add your Grok API key here
+GROK_API_KEY=your_grok_api_key_here

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Referral Finder</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .form-section { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], textarea, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px; }
+        textarea { height: 100px; resize: vertical; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .results { margin-top: 30px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f8f9fa; }
+        .copy-btn { background: #28a745; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; margin-top: 5px; }
+        .copy-btn:hover { background: #218838; }
+        .loading { text-align: center; padding: 20px; }
+        .error { color: red; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Referral Finder</h1>
+        <p>Upload your resume and job details to find relevant LinkedIn connections for referrals.</p>
+        
+        <form id="referralForm">
+            <div class="form-section">
+                <h3>Your Profile</h3>
+                
+                <div class="form-group">
+                    <label for="resume_file">Upload Resume (PDF):</label>
+                    <input type="file" id="resume_file" name="resume_file" accept=".pdf">
+                </div>
+                
+                <div class="form-group">
+                    <label for="resume_text">Or Paste Resume Text:</label>
+                    <textarea id="resume_text" name="resume_text" placeholder="Paste your resume content here..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="linkedin_profile">Your LinkedIn Profile URL:</label>
+                    <input type="url" id="linkedin_profile" name="linkedin_profile" placeholder="https://linkedin.com/in/yourprofile">
+                </div>
+                
+                <div class="form-group">
+                    <label for="interests">Personal Interests or Extra Context:</label>
+                    <textarea id="interests" name="interests" placeholder="Any additional information about your background, interests, or context..."></textarea>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h3>Job Details</h3>
+                
+                <div class="form-group">
+                    <label for="job_description">Job Description:</label>
+                    <textarea id="job_description" name="job_description" placeholder="Paste the job description here..." required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="job_link">Job Posting Link (optional):</label>
+                    <input type="url" id="job_link" name="job_link" placeholder="https://company.com/careers/job...">
+                </div>
+            </div>
+            
+            <button type="submit">Find Referral Candidates</button>
+        </form>
+        
+        <div id="loading" class="loading" style="display: none;">
+            <p>Searching for relevant LinkedIn profiles...</p>
+        </div>
+        
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="results" class="results" style="display: none;">
+            <h3>Referral Candidates</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>LinkedIn Profile</th>
+                        <th>Why They're Relevant</th>
+                        <th>Outreach Message</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsTable">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('referralForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const error = document.getElementById('error');
+            
+            loading.style.display = 'block';
+            results.style.display = 'none';
+            error.style.display = 'none';
+            
+            const formData = new FormData(this);
+            
+            try {
+                const response = await fetch('/find_referrals', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayResults(data.profiles);
+                } else {
+                    throw new Error(data.error || 'An error occurred');
+                }
+            } catch (err) {
+                error.textContent = err.message;
+                error.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+        
+        function displayResults(profiles) {
+            const resultsTable = document.getElementById('resultsTable');
+            const results = document.getElementById('results');
+            
+            resultsTable.innerHTML = '';
+            
+            profiles.forEach(profile => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${profile.name}</strong></td>
+                    <td><a href="${profile.linkedin_url}" target="_blank">${profile.linkedin_url}</a></td>
+                    <td>${profile.relevance}</td>
+                    <td>
+                        <div>${profile.message}</div>
+                        <button class="copy-btn" onclick="copyToClipboard('${profile.message.replace(/'/g, "\\'")}')">Copy Message</button>
+                    </td>
+                `;
+                resultsTable.appendChild(row);
+            });
+            
+            results.style.display = 'block';
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                // Show a brief "copied" message
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.background = '#6c757d';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '#28a745';
+                }, 1000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy message to clipboard');
+            });
+        }
+    </script>
+</body>
+</html>
