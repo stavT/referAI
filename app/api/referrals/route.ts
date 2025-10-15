@@ -7,7 +7,8 @@ import JobSearch from '@/models/JobSearch';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.XAI_API_KEY || process.env.OPENAI_API_KEY,
+  baseURL: process.env.XAI_API_KEY ? 'https://api.x.ai/v1' : undefined,
 });
 
 interface ReferralMatch {
@@ -73,7 +74,7 @@ Search LinkedIn for people at ${company} in roles related to: ${jobTitle}
 CRITICAL REQUIREMENTS:
 1. Use web search to find ACTUAL LinkedIn profiles
 2. Only return people who CURRENTLY work at ${company}
-3. Return 5-10 REAL employees with valid LinkedIn URLs
+3. Return AT LEAST 4-6 REAL employees with valid LinkedIn URLs (more is better!)
 4. Match people who share commonalities with this user:
 
 ${userProfileSummary}
@@ -102,23 +103,57 @@ IMPORTANT:
 
     console.log(`Searching for employees at ${company} using web search...`);
 
-    // Use OpenAI Chat Completions with search-enabled model
+    // Use Grok with Live Search enabled
     try {
-      const response: any = await openai.chat.completions.create({
-        model: 'gpt-4o-mini', // Will add web search capability in prompt
+      const requestBody: any = {
+        model: process.env.XAI_API_KEY ? 'grok-2-latest' : 'gpt-4o-mini',
         messages: [{
           role: 'system',
-          content: 'You are a LinkedIn research assistant with web search capabilities. You can search LinkedIn to find real, current employees at companies. Always verify information is current and accurate.'
+          content: 'You are a LinkedIn research expert. Use web search to find multiple (4-6) REAL LinkedIn profiles of current employees. Search thoroughly and return all relevant profiles you find.'
         }, {
           role: 'user',
-          content: searchPrompt + '\n\nIMPORTANT: Use web search to find REAL LinkedIn profiles of people who CURRENTLY work at the company. Verify all information is accurate and up-to-date.'
+          content: searchPrompt + '\n\nUSE LIVE SEARCH NOW to find AT LEAST 4-6 REAL LinkedIn profiles at the company. Search "site:linkedin.com/in/ [company name] employees" multiple times to find enough matches. Return all the actual profiles you find via web search.'
         }],
-        response_format: { type: 'json_object' },
         temperature: 0.2,
-        max_tokens: 3000,
+        max_tokens: 4000,
+      };
+
+      // Add search parameters for Grok (if using Grok API)
+      if (process.env.XAI_API_KEY) {
+        requestBody.search_parameters = {
+          mode: 'on', // Force search to be enabled
+          return_citations: true,
+          max_search_results: 30, // Allow more search results to find enough profiles
+          sources: [
+            {
+              type: 'web',
+              allowed_websites: ['linkedin.com']
+            }
+          ]
+        };
+        requestBody.response_format = { type: 'json_object' };
+      } else {
+        // OpenAI doesn't support search_parameters
+        requestBody.response_format = { type: 'json_object' };
+      }
+
+      console.log('Request config:', {
+        model: requestBody.model,
+        hasSearchParams: !!requestBody.search_parameters,
+        searchMode: requestBody.search_parameters?.mode
       });
 
+      const response: any = await openai.chat.completions.create(requestBody);
+
       console.log('AI search completed');
+      
+      // Log citations if available (Grok Live Search)
+      if (response.citations) {
+        console.log('Citations (sources used):', response.citations);
+      }
+      if (response.usage?.num_sources_used) {
+        console.log('Number of sources used:', response.usage.num_sources_used);
+      }
 
       // Get the response content
       const responseText = response.choices[0]?.message?.content;
@@ -156,7 +191,6 @@ IMPORTANT:
           match.linkedinUrl &&
           match.linkedinUrl.includes('linkedin.com/in/') &&
           match.relevance &&
-          match.relevance.toLowerCase().includes(company.toLowerCase()) &&
           match.commonalities?.length > 0 &&
           match.suggestedMessage &&
           !match.linkedinUrl.toLowerCase().includes('example') &&
@@ -166,6 +200,11 @@ IMPORTANT:
 
         if (!isValid) {
           console.log('Invalid match filtered out:', match.name, match.linkedinUrl);
+          console.log('Why rejected:', {
+            hasRelevance: !!match.relevance,
+            relevanceText: match.relevance,
+            companyInRelevance: match.relevance?.toLowerCase().includes(company.toLowerCase())
+          });
         }
 
         return isValid;
@@ -202,7 +241,7 @@ IMPORTANT:
       console.log('Falling back to Chat Completions API...');
       
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: process.env.XAI_API_KEY ? 'grok-2-latest' : 'gpt-4o-mini',
         messages: [{
           role: 'user',
           content: searchPrompt + '\n\nNote: Search the web and LinkedIn to find REAL current employees.'
