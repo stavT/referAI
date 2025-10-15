@@ -81,7 +81,7 @@ ${userProfileSummary}
 
 Look for shared: ethnicity, nationality, alma mater, location, interests, values, language, or background.
 
-For each person found, return this JSON structure:
+Return this JSON structure with AT LEAST 4 different people:
 {
   "matches": [
     {
@@ -91,15 +91,40 @@ For each person found, return this JSON structure:
       "commonalities": ["Specific shared background/trait", "Another specific commonality"],
       "suggestedMessage": "Personalized 150-300 character message highlighting specific shared traits",
       "connectionDegree": "2nd degree"
+    },
+    {
+      "name": "Second Real Person",
+      "linkedinUrl": "https://linkedin.com/in/second-person",
+      "relevance": "Their role",
+      "commonalities": ["Traits"],
+      "suggestedMessage": "Message",
+      "connectionDegree": "2nd degree"
+    },
+    {
+      "name": "Third Real Person",
+      "linkedinUrl": "https://linkedin.com/in/third-person",
+      "relevance": "Their role",
+      "commonalities": ["Traits"],
+      "suggestedMessage": "Message",
+      "connectionDegree": "2nd degree"
+    },
+    {
+      "name": "Fourth Real Person",
+      "linkedinUrl": "https://linkedin.com/in/fourth-person",
+      "relevance": "Their role",
+      "commonalities": ["Traits"],
+      "suggestedMessage": "Message",
+      "connectionDegree": "2nd degree"
     }
   ]
 }
 
-IMPORTANT:
-- Use web search to verify they currently work at ${company}
-- LinkedIn URLs must be real and accessible
+CRITICAL:
+- Return AT LEAST 4 different people (minimum 4, ideally 5-6)
+- Use web search to find and verify they currently work at ${company}
+- All LinkedIn URLs must be real profiles you found via search
 - Focus on genuine connections (shared background, school, interests, etc.)
-- Messages must mention specific commonalities, not be generic`;
+- Each person should have unique commonalities with the user`;
 
     console.log(`Searching for employees at ${company} using web search...`);
 
