@@ -102,26 +102,36 @@ IMPORTANT:
 
     console.log(`Searching for employees at ${company} using web search...`);
 
-    // Use OpenAI Chat Completions with search-enabled model
+    // Use OpenAI Responses API with web search
     try {
-      const response: any = await openai.chat.completions.create({
-        model: 'gpt-4o-mini', // Will add web search capability in prompt
-        messages: [{
-          role: 'system',
-          content: 'You are a LinkedIn research assistant with web search capabilities. You can search LinkedIn to find real, current employees at companies. Always verify information is current and accurate.'
-        }, {
-          role: 'user',
-          content: searchPrompt + '\n\nIMPORTANT: Use web search to find REAL LinkedIn profiles of people who CURRENTLY work at the company. Verify all information is accurate and up-to-date.'
-        }],
-        response_format: { type: 'json_object' },
-        temperature: 0.2,
-        max_tokens: 3000,
+      const response: any = await openai.responses.create({
+        model: 'gpt-4o-mini',
+        tools: [
+          { 
+            type: 'web_search',
+            filters: {
+              allowed_domains: ['linkedin.com']
+            }
+          }
+        ],
+        tool_choice: 'auto',
+        include: ['web_search_call.action.sources'],
+        input: searchPrompt,
       });
 
-      console.log('AI search completed');
+      console.log('Web search completed');
+      console.log('Sources used:', response.output?.[0]?.web_search_call?.action?.sources);
 
-      // Get the response content
-      const responseText = response.choices[0]?.message?.content;
+      // Get the text response
+      let responseText = '';
+      if (response.output_text) {
+        responseText = response.output_text;
+      } else if (response.output && Array.isArray(response.output)) {
+        const messageOutput = response.output.find((item: any) => item.type === 'message');
+        if (messageOutput?.content?.[0]?.text) {
+          responseText = messageOutput.content[0].text;
+        }
+      }
 
       console.log('Response text:', responseText?.substring(0, 500));
 
