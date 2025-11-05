@@ -1,3 +1,5 @@
+<img width="1536" height="1024" alt="ChatGPT Image Nov 5, 2025, 10_53_55 AM" src="https://github.com/user-attachments/assets/aba8af55-6999-4d99-9d1d-ee38f757a942" />
+
 # Referral Finder - AI-Powered Job Referral Platform
 
 A Next.js web application that helps job seekers get personalized LinkedIn referral requests by matching them with people at their target company based on shared background, interests, and experiences.
